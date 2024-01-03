@@ -1,0 +1,359 @@
+{
+  "pipelineSpec": {
+    "components": {
+      "comp-create-census-view": {
+        "executorLabel": "exec-create-census-view",
+        "inputDefinitions": {
+          "parameters": {
+            "dataset_id": {
+              "type": "STRING"
+            },
+            "project_id": {
+              "type": "STRING"
+            },
+            "view_name": {
+              "type": "STRING"
+            }
+          }
+        }
+      },
+      "comp-deploy-xgboost-model": {
+        "executorLabel": "exec-deploy-xgboost-model",
+        "inputDefinitions": {
+          "artifacts": {
+            "model": {
+              "artifactType": {
+                "schemaTitle": "system.Model",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          },
+          "parameters": {
+            "project_id": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "artifacts": {
+            "vertex_endpoint": {
+              "artifactType": {
+                "schemaTitle": "system.Artifact",
+                "schemaVersion": "0.0.1"
+              }
+            },
+            "vertex_model": {
+              "artifactType": {
+                "schemaTitle": "system.Model",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          }
+        }
+      },
+      "comp-export-dataset": {
+        "executorLabel": "exec-export-dataset",
+        "inputDefinitions": {
+          "parameters": {
+            "dataset_id": {
+              "type": "STRING"
+            },
+            "project_id": {
+              "type": "STRING"
+            },
+            "view_name": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "artifacts": {
+            "dataset": {
+              "artifactType": {
+                "schemaTitle": "system.Dataset",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          }
+        }
+      },
+      "comp-xgboost-training": {
+        "executorLabel": "exec-xgboost-training",
+        "inputDefinitions": {
+          "artifacts": {
+            "dataset": {
+              "artifactType": {
+                "schemaTitle": "system.Dataset",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          }
+        },
+        "outputDefinitions": {
+          "artifacts": {
+            "metrics": {
+              "artifactType": {
+                "schemaTitle": "system.Metrics",
+                "schemaVersion": "0.0.1"
+              }
+            },
+            "model": {
+              "artifactType": {
+                "schemaTitle": "system.Model",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          }
+        }
+      }
+    },
+    "deploymentSpec": {
+      "executors": {
+        "exec-create-census-view": {
+          "container": {
+            "args": [
+              "--executor_input",
+              "{{$}}",
+              "--function_to_execute",
+              "create_census_view"
+            ],
+            "command": [
+              "sh",
+              "-c",
+              "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'google-cloud-bigquery==3.10.0' 'kfp==1.8.22' && \"$0\" \"$@\"\n",
+              "sh",
+              "-ec",
+              "program_path=$(mktemp -d)\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\npython3 -m kfp.v2.components.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+              "\nimport kfp\nfrom kfp.v2 import dsl\nfrom kfp.v2.dsl import *\nfrom typing import *\n\ndef create_census_view(\n    project_id: str,\n    dataset_id: str,\n    view_name: str,\n):\n    \"\"\"Creates a BigQuery view on `bigquery-public-data.ml_datasets.census_adult_income`.\n\n    Args:\n        project_id: The Project ID.\n        dataset_id: The BigQuery Dataset ID. Must be pre-created in the project.\n        view_name: The BigQuery view name.\n    \"\"\"\n    from google.cloud import bigquery\n\n    client = bigquery.Client(project=project_id)\n\n    create_or_replace_view = \"\"\"\n        CREATE OR REPLACE VIEW\n        `{dataset_id}`.`{view_name}` AS\n        SELECT\n          age,\n          workclass,\n          education,\n          education_num,\n          marital_status,\n          occupation,\n          relationship,\n          race,\n          sex,\n          capital_gain,\n          capital_loss,\n          hours_per_week,\n          native_country,\n          income_bracket,\n        FROM\n          `bigquery-public-data.ml_datasets.census_adult_income`\n    \"\"\".format(\n        dataset_id=dataset_id, view_name=view_name\n    )\n\n    job_config = bigquery.QueryJobConfig()\n    query_job = client.query(query=create_or_replace_view, job_config=job_config)\n    query_job.result()\n\n"
+            ],
+            "image": "python:3.7"
+          }
+        },
+        "exec-deploy-xgboost-model": {
+          "container": {
+            "args": [
+              "--executor_input",
+              "{{$}}",
+              "--function_to_execute",
+              "deploy_xgboost_model"
+            ],
+            "command": [
+              "sh",
+              "-c",
+              "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'google-cloud-aiplatform==1.25.0' 'kfp==1.8.22' && \"$0\" \"$@\"\n",
+              "sh",
+              "-ec",
+              "program_path=$(mktemp -d)\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\npython3 -m kfp.v2.components.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+              "\nimport kfp\nfrom kfp.v2 import dsl\nfrom kfp.v2.dsl import *\nfrom typing import *\n\ndef deploy_xgboost_model(\n    model: Input[Model],\n    project_id: str,\n    vertex_endpoint: Output[Artifact],\n    vertex_model: Output[Model],\n):\n    \"\"\"Deploys an XGBoost model to Vertex AI Endpoint.\n\n    Args:\n        model: The model to deploy.\n        project_id: The project ID of the Vertex AI Endpoint.\n\n    Returns:\n        vertex_endpoint: The deployed Vertex AI Endpoint.\n        vertex_model: The deployed Vertex AI Model.\n    \"\"\"\n    from google.cloud import aiplatform\n\n    aiplatform.init(project=project_id)\n\n    deployed_model = aiplatform.Model.upload(\n        display_name=\"census-demo-model\",\n        artifact_uri=model.uri,\n        serving_container_image_uri=\"us-docker.pkg.dev/vertex-ai/prediction/xgboost-cpu.1-6:latest\",\n    )\n    endpoint = deployed_model.deploy(machine_type=\"n1-standard-4\")\n\n    vertex_endpoint.uri = endpoint.resource_name\n    vertex_model.uri = deployed_model.resource_name\n\n"
+            ],
+            "image": "python:3.7"
+          }
+        },
+        "exec-export-dataset": {
+          "container": {
+            "args": [
+              "--executor_input",
+              "{{$}}",
+              "--function_to_execute",
+              "export_dataset"
+            ],
+            "command": [
+              "sh",
+              "-c",
+              "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'google-cloud-bigquery[pandas]==3.10.0' 'kfp==1.8.22' && \"$0\" \"$@\"\n",
+              "sh",
+              "-ec",
+              "program_path=$(mktemp -d)\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\npython3 -m kfp.v2.components.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+              "\nimport kfp\nfrom kfp.v2 import dsl\nfrom kfp.v2.dsl import *\nfrom typing import *\n\ndef export_dataset(\n    project_id: str,\n    dataset_id: str,\n    view_name: str,\n    dataset: Output[Dataset],\n):\n    \"\"\"Exports from BigQuery to a CSV file.\n\n    Args:\n        project_id: The Project ID.\n        dataset_id: The BigQuery Dataset ID. Must be pre-created in the project.\n        view_name: The BigQuery view name.\n\n    Returns:\n        dataset: The Dataset artifact with exported CSV file.\n    \"\"\"\n    from google.cloud import bigquery\n\n    client = bigquery.Client(project=project_id)\n\n    table_name = f\"{project_id}.{dataset_id}.{view_name}\"\n    query = \"\"\"\n    SELECT\n      *\n    FROM\n      `{table_name}`\n    LIMIT 100\n    \"\"\".format(\n        table_name=table_name\n    )\n\n    job_config = bigquery.QueryJobConfig()\n    query_job = client.query(query=query, job_config=job_config)\n    df = query_job.result().to_dataframe()\n    df.to_csv(dataset.path, index=False)\n\n"
+            ],
+            "image": "python:3.7"
+          }
+        },
+        "exec-xgboost-training": {
+          "container": {
+            "args": [
+              "--executor_input",
+              "{{$}}",
+              "--function_to_execute",
+              "xgboost_training"
+            ],
+            "command": [
+              "sh",
+              "-c",
+              "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'xgboost==1.6.2' 'pandas==1.3.5' 'joblib==1.1.0' 'scikit-learn==1.0.2' 'kfp==1.8.22' && \"$0\" \"$@\"\n",
+              "sh",
+              "-ec",
+              "program_path=$(mktemp -d)\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\npython3 -m kfp.v2.components.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+              "\nimport kfp\nfrom kfp.v2 import dsl\nfrom kfp.v2.dsl import *\nfrom typing import *\n\ndef xgboost_training(\n    dataset: Input[Dataset],\n    model: Output[Model],\n    metrics: Output[Metrics],\n):\n    \"\"\"Trains an XGBoost classifier.\n\n    Args:\n        dataset: The training dataset.\n\n    Returns:\n        model: The model artifact stores the model.joblib file.\n        metrics: The metrics of the trained model.\n    \"\"\"\n    import os\n\n    import joblib\n    import pandas as pd\n    import xgboost as xgb\n    from sklearn.metrics import (accuracy_score, precision_recall_curve,\n                                 roc_auc_score)\n    from sklearn.model_selection import (RandomizedSearchCV, StratifiedKFold,\n                                         train_test_split)\n    from sklearn.preprocessing import LabelEncoder\n\n    # Load the training census dataset\n    with open(dataset.path, \"r\") as train_data:\n        raw_data = pd.read_csv(train_data)\n\n    CATEGORICAL_COLUMNS = (\n        \"workclass\",\n        \"education\",\n        \"marital_status\",\n        \"occupation\",\n        \"relationship\",\n        \"race\",\n        \"sex\",\n        \"native_country\",\n    )\n    LABEL_COLUMN = \"income_bracket\"\n    POSITIVE_VALUE = \" >50K\"\n\n    # Convert data in categorical columns to numerical values\n    encoders = {col: LabelEncoder() for col in CATEGORICAL_COLUMNS}\n    for col in CATEGORICAL_COLUMNS:\n        raw_data[col] = encoders[col].fit_transform(raw_data[col])\n\n    X = raw_data.drop([LABEL_COLUMN], axis=1).values\n    y = raw_data[LABEL_COLUMN] == POSITIVE_VALUE\n\n    X_train, X_test, y_train, y_test = train_test_split(X, y)\n    _ = xgb.DMatrix(X_train, label=y_train)\n    _ = xgb.DMatrix(X_test, label=y_test)\n\n    params = {\n        \"reg_lambda\": [0, 1],\n        \"gamma\": [1],\n        \"max_depth\": [10],\n        \"learning_rate\": [0.1],\n    }\n\n    xgb_model = xgb.XGBClassifier(\n        n_estimators=50,\n        objective=\"binary:hinge\",\n        silent=True,\n        nthread=1,\n        eval_metric=\"auc\",\n    )\n\n    folds = 3\n    param_comb = 10\n\n    skf = StratifiedKFold(n_splits=folds, shuffle=True, random_state=42)\n\n    random_search = RandomizedSearchCV(\n        xgb_model,\n        param_distributions=params,\n        n_iter=param_comb,\n        scoring=\"precision\",\n        n_jobs=4,\n        cv=skf.split(X_train, y_train),\n        verbose=4,\n        random_state=42,\n    )\n\n    random_search.fit(X_train, y_train)\n    xgb_model_best = random_search.best_estimator_\n    predictions = xgb_model_best.predict(X_test)\n    score = accuracy_score(y_test, predictions)\n    auc = roc_auc_score(y_test, predictions)\n    _ = precision_recall_curve(y_test, predictions)\n\n    metrics.log_metric(\"accuracy\", (score * 100.0))\n    metrics.log_metric(\"framework\", \"xgboost\")\n    metrics.log_metric(\"dataset_size\", len(raw_data))\n    metrics.log_metric(\"AUC\", auc)\n\n    # Export the model to a file\n    os.makedirs(model.path, exist_ok=True)\n    joblib.dump(xgb_model_best, os.path.join(model.path, \"model.joblib\"))\n\n"
+            ],
+            "image": "python:3.7"
+          }
+        }
+      }
+    },
+    "pipelineInfo": {
+      "name": "census-demo-pipeline"
+    },
+    "root": {
+      "dag": {
+        "outputs": {
+          "artifacts": {
+            "xgboost-training-metrics": {
+              "artifactSelectors": [
+                {
+                  "outputArtifactKey": "metrics",
+                  "producerSubtask": "xgboost-training"
+                }
+              ]
+            }
+          }
+        },
+        "tasks": {
+          "create-census-view": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-create-census-view"
+            },
+            "inputs": {
+              "parameters": {
+                "dataset_id": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": "census"
+                    }
+                  }
+                },
+                "project_id": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": "dev-dlk-cl"
+                    }
+                  }
+                },
+                "view_name": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": "census_data"
+                    }
+                  }
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "create-census-view"
+            }
+          },
+          "deploy-xgboost-model": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-deploy-xgboost-model"
+            },
+            "dependentTasks": [
+              "xgboost-training"
+            ],
+            "inputs": {
+              "artifacts": {
+                "model": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "model",
+                    "producerTask": "xgboost-training"
+                  }
+                }
+              },
+              "parameters": {
+                "project_id": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": "dev-dlk-cl"
+                    }
+                  }
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "deploy-xgboost-model"
+            }
+          },
+          "export-dataset": {
+            "cachingOptions": {},
+            "componentRef": {
+              "name": "comp-export-dataset"
+            },
+            "dependentTasks": [
+              "create-census-view"
+            ],
+            "inputs": {
+              "parameters": {
+                "dataset_id": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": "census"
+                    }
+                  }
+                },
+                "project_id": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": "dev-dlk-cl"
+                    }
+                  }
+                },
+                "view_name": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": "census_data"
+                    }
+                  }
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "export-dataset"
+            }
+          },
+          "xgboost-training": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-xgboost-training"
+            },
+            "dependentTasks": [
+              "export-dataset"
+            ],
+            "inputs": {
+              "artifacts": {
+                "dataset": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "dataset",
+                    "producerTask": "export-dataset"
+                  }
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "xgboost-training"
+            }
+          }
+        }
+      },
+      "outputDefinitions": {
+        "artifacts": {
+          "xgboost-training-metrics": {
+            "artifactType": {
+              "schemaTitle": "system.Metrics",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        }
+      }
+    },
+    "schemaVersion": "2.0.0",
+    "sdkVersion": "kfp-1.8.22"
+  },
+  "runtimeConfig": {}
+}
