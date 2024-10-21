@@ -12,7 +12,7 @@ from kfp.v2.google.client import AIPlatformClient
 from google.cloud import aiplatform
 from google_cloud_pipeline_components import aiplatform as gcc_aip
 
-PROJECT_ID = 'dev-dlk-cl'
+PROJECT_ID = 'skilled-array-436515-n3'
 DATASET_ID = "census"  # The Data Set ID where the view sits
 VIEW_NAME = "census_data"  # BigQuery view you create for input data
 
@@ -63,7 +63,9 @@ def create_census_view(
     query_job = client.query(query=create_or_replace_view, job_config=job_config)
     query_job.result()
     
-    
+#  export_dataset function receibe as input 3 paremters, but the last paramter is an output of the function
+# this is feature allow by the vertext pipelines, and another ml orchestation framworks such as kubeflow, airflow
+# or Azure ML pipelines
 @component(
     packages_to_install=["google-cloud-bigquery[pandas]==3.10.0"],
 )
