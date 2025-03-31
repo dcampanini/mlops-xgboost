@@ -9,7 +9,8 @@ if __name__ == '__main__':
         display_name="mlops-xgboost",
         template_path="tab_classif_pipeline.json",
         job_id="mlops-xgboost-{0}".format(TIMESTAMP),
-        enable_caching=True
+        location = "us-central1",
+        enable_caching=False
     )
 
     job.submit()

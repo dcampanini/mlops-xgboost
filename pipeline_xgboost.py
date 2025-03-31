@@ -11,8 +11,20 @@ from kfp.v2.google.client import AIPlatformClient
 
 from google.cloud import aiplatform
 from google_cloud_pipeline_components import aiplatform as gcc_aip
+import os
+import subprocess
 
-PROJECT_ID = 'skilled-array-436515-n3'
+#PROJECT_ID = 'skilled-array-436515-n3'
+
+# Get your Google Cloud project ID from gcloud
+if not os.getenv("IS_TESTING"):
+    shell_output = subprocess.check_output(
+            "gcloud config list --format 'value(core.project)' 2>/dev/null",
+            shell=True, text=True).strip()
+    PROJECT_ID = shell_output
+    print("Project ID: ", PROJECT_ID)
+
+
 DATASET_ID = "census"  # The Data Set ID where the view sits
 VIEW_NAME = "census_data"  # BigQuery view you create for input data
 
@@ -271,6 +283,7 @@ def pipeline():
         .after(create_input_view_task)
         .set_caching_options(False)
     )
+    
 
     training_task = xgboost_training(
         dataset=export_dataset_task.outputs["dataset"],
