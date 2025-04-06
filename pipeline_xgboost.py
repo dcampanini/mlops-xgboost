@@ -254,9 +254,10 @@ def deploy_xgboost_model(
 
     deployed_model = aiplatform.Model.upload(
         display_name="census-demo-model",
-        artifact_uri=model.uri,
+        artifact_uri=model.uri, #  path to a GCS directory containing the saved model
         serving_container_image_uri="us-docker.pkg.dev/vertex-ai/prediction/xgboost-cpu.1-6:latest",
     )
+  
     endpoint = deployed_model.deploy(machine_type="n1-standard-4")
 
     vertex_endpoint.uri = endpoint.resource_name
