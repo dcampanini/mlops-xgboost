@@ -75,8 +75,8 @@ def create_census_view(
     query_job = client.query(query=create_or_replace_view, job_config=job_config)
     query_job.result()
     
-#  export_dataset function receibe as input 3 paremters, but the last paramter is an output of the function
-# this is feature allow by the vertext pipelines, and another ml orchestation framworks such as kubeflow, airflow
+#  export_dataset function receibe as input 3 paremters, but the last parameter is an output of the function
+# this is feature allow by the vertext pipelines, and another ml orchestation frameworks such as kubeflow, airflow
 # or Azure ML pipelines
 @component(
     packages_to_install=["google-cloud-bigquery[pandas]==3.10.0"],
@@ -298,6 +298,6 @@ def pipeline():
 if __name__ == '__main__':
     
     compiler.Compiler().compile(
-        pipeline_func=pipeline, package_path="tab_classif_pipeline.json"
+        pipeline_func=pipeline, package_path="classification_pipeline.json"
     )
     print('Pipeline compilado exitosamente')

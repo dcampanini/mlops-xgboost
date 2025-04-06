@@ -7,7 +7,7 @@ if __name__ == '__main__':
 
     job = aiplatform.PipelineJob(
         display_name="mlops-xgboost",
-        template_path="tab_classif_pipeline.json",
+        template_path="classification_pipeline.json",
         job_id="mlops-xgboost-{0}".format(TIMESTAMP),
         location = "us-central1",
         enable_caching=False
